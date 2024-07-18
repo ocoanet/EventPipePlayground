@@ -13,21 +13,14 @@ var launchResult = dbgshim.CreateProcessForLaunch(targetPath, bSuspendProcess: t
 
 var diagnosticsClient = new DiagnosticsClient(launchResult.ProcessId);
 
+// If StartEventPipeSession is invoked before ResumeProcess, StartEventPipeSession hangs.
+// If StartEventPipeSession is invoked after ResumeProcess, it is too late to enable provider allocation keywords.
+
 dbgshim.ResumeProcess(launchResult.ResumeHandle);
 
 using var startEventPipeSession = diagnosticsClient.StartEventPipeSession(new EventPipeProvider(ClrTraceEventParser.ProviderName, EventLevel.Verbose, (long)GetClrRuntimeProviderKeywords()), false);
 
 var eventSource = new EventPipeEventSource(startEventPipeSession.EventStream);
-
-// eventSource.Clr.All += traceEvent =>
-// {
-//     Console.WriteLine(traceEvent);
-// };
-
-eventSource.Clr.ClrStackWalk += traceEvent =>
-{
-    Console.WriteLine(traceEvent);
-};
 
 eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
 {

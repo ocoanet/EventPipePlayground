@@ -10,11 +10,13 @@ Allocator 1 is a dummy application which runs for a few seconds and allocates ob
 - Convert the output nettrace file to ETLX using `TraceLog.CreateFromEventPipeDataFile`.
 - Parse the ETLX file using `TraceLog` and extract stack traces using the `CallStack` trace event extension method.
 
-## Detector 2 (WIP)
+## Detector 2
 
 - Use `dotnet-trace` to start the target applications.
 - Parse the  nettrace file using `EventPipeEventSource`.
-- Use unsafe code to extract the stack traces from trace events.
+- Use unsafe code to extract the stack traces from trace events (from trace event extended data).
+
+> The method name lookup is only partially implemented.
 
 ## Detector 3 (failed expriment)
 

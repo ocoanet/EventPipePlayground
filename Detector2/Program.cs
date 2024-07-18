@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using Detector2;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
@@ -21,7 +22,7 @@ Console.ReadLine();
 static void ExecuteTracing(string traceFilePath)
 {
     var dotnetTracePath = GetDotnetTracePath();
-    var clrRuntimeProvider = $"{ClrTraceEventParser.ProviderName}:{(ulong)GetClrRuntimeProviderKeywords()}:{(int)TraceEventLevel.Verbose}";
+    var clrRuntimeProvider = $"{ClrTraceEventParser.ProviderName}:0x{(ulong)GetClrRuntimeProviderKeywords():X}:{(int)TraceEventLevel.Verbose}";
     var providers = $"{clrRuntimeProvider}";
     var targetPath = @"C:\Dev\Repos\EventPipePlayground\Allocator1\bin\Debug\net8.0\Allocator1.exe";
 
@@ -59,11 +60,9 @@ static void ExecuteTracing(string traceFilePath)
 
 static ClrTraceEventParser.Keywords GetClrRuntimeProviderKeywords()
 {
-    return ClrTraceEventParser.Keywords.GC
-           | ClrTraceEventParser.Keywords.Jit
+    return ClrTraceEventParser.Keywords.Jit
            | ClrTraceEventParser.Keywords.JittedMethodILToNativeMap
            | ClrTraceEventParser.Keywords.Loader
-           | ClrTraceEventParser.Keywords.Stack
            | ClrTraceEventParser.Keywords.Codesymbols
            | ClrTraceEventParser.Keywords.GCSampledObjectAllocationLow
            | ClrTraceEventParser.Keywords.GCSampledObjectAllocationHigh
@@ -96,15 +95,14 @@ static void ParseTraceFile(string traceFilePath)
 
     var stackParser = new EventPipeStackParser(eventSource);
 
-    // eventSource.Clr.All += traceEvent =>
-    // {
-    //     Console.WriteLine(traceEvent);
-    // };
-
-    // eventSource.Clr.ClrStackWalk += traceEvent =>
-    // {
-    //     Console.WriteLine(traceEvent);
-    // };
+    eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
+    {
+        var typeName = stackParser.GetTypeName(traceEvent.TypeID);
+        var callStack = FormatCallStack(stackParser.GetCallStack(traceEvent));
+        Console.WriteLine("///////////////////////////");
+        Console.WriteLine($"Type: {typeName}");
+        Console.WriteLine(callStack);
+    };
 
     Console.WriteLine("Processing event source");
 
@@ -113,3 +111,16 @@ static void ParseTraceFile(string traceFilePath)
     Console.WriteLine($"Trace file parsing completed");
 }
 
+static string FormatCallStack(EventPipeCallStack? callStack)
+{
+    if (callStack == null)
+        return "No callstack";
+
+    var stringBuilder = new StringBuilder();
+    foreach (var address in callStack.Addresses)
+    {
+        stringBuilder.AppendLine($"     {address}");
+    }
+
+    return stringBuilder.ToString();
+}

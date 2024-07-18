@@ -1,5 +1,7 @@
-﻿using System.Dynamic;
-using Microsoft.Diagnostics.Tracing;
+﻿// ReSharper disable InconsistentNaming
+// ReSharper disable UnusedMember.Global
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
 namespace Microsoft.Diagnostics.Tracing;
 
@@ -11,7 +13,7 @@ public unsafe class TraceEventProxy
     public object EventTypeUserData;
     internal bool NeedsFixup;
     internal int ParentThread;
-    internal unsafe TraceEventNativeMethods.EVENT_RECORD* eventRecord;
+    internal TraceEventNativeMethods.EVENT_RECORD* eventRecord;
     internal IntPtr userData;
     /// <summary>
     /// TraceEvent knows where to dispatch to. To support many subscriptions to the same event we chain
@@ -46,7 +48,7 @@ public unsafe class TraceEventProxy
     /// The thread ID for the thread that logged the event
     /// <para>This field may return -1 for some events when the thread ID is not known.</para>
     /// </summary>
-    public unsafe int ThreadID
+    public int ThreadID
     {
         get
         {
