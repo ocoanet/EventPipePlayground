@@ -1,21 +1,37 @@
-﻿using System.Runtime.CompilerServices;
-using Microsoft.Diagnostics.Tracing;
+﻿using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
 namespace Detector2;
 
-public unsafe class EventPipeStackParser
+public class EventPipeTypeResolver
 {
     private readonly List<ParserMethod> _methods = new();
     private readonly ParserMethod _lookupParserMethod = new();
     private readonly Dictionary<ulong, string> _typeNames = new();
 
-    public EventPipeStackParser(EventPipeEventSource eventSource)
+    public EventPipeTypeResolver(EventPipeEventSource eventSource)
     {
-        // TODO: Fix method lookup
         eventSource.Clr.MethodLoadVerbose += OnMethodLoadVerbose;
         eventSource.Clr.MethodDCStartVerboseV2 += OnMethodLoadVerbose;
+        eventSource.Clr.MethodDCStopVerboseV2 += OnMethodLoadVerbose;
         eventSource.Clr.TypeBulkType += OnTypeBulkType;
+
+        var rundownParser = new ClrRundownTraceEventParser(eventSource);
+        rundownParser.MethodDCStartVerbose += OnMethodLoadVerbose;
+        rundownParser.MethodDCStopVerbose += OnMethodLoadVerbose;
+    }
+
+    public EventPipeCallStack ResolveCallStack(EventPipeUnresolvedCallSack unresolvedCallSack)
+    {
+        var addresses = new EventPipeCallStackAddress[unresolvedCallSack.Addresses.Length];
+
+        for (var index = 0; index < addresses.Length; index++)
+        {
+            var address = unresolvedCallSack.Addresses[index];
+            addresses[index] = new EventPipeCallStackAddress(address, GetMethodFullName(address));
+        }
+
+        return new EventPipeCallStack(addresses);
     }
 
     public string? GetTypeName(ulong typeId)
@@ -32,32 +48,7 @@ public unsafe class EventPipeStackParser
         }
     }
 
-    private void OnMethodLoadVerbose(MethodLoadUnloadVerboseTraceData traceData)
-    {
-        if (!traceData.IsJitted)
-            return;
-
-        var index = SearchMethodIndex(traceData.MethodStartAddress);
-        if (index >= 0)
-            return;
-
-        var insertIndex = ~index;
-        _methods.Insert(insertIndex, new ParserMethod
-        {
-            FullName = GetFullName(traceData),
-            StartAddress = traceData.MethodStartAddress,
-            Length = (uint)traceData.MethodSize,
-        });
-    }
-
-    private int SearchMethodIndex(ulong address)
-    {
-        _lookupParserMethod.StartAddress = address;
-
-        return _methods.BinarySearch(_lookupParserMethod, ParserMethodAddressComparer.Instance);
-    }
-
-    private string? GetMethodFullName(ulong address)
+    public string? GetMethodFullName(ulong address)
     {
         var index = SearchMethodIndex(address);
         if (index >= 0)
@@ -70,38 +61,27 @@ public unsafe class EventPipeStackParser
         return null;
     }
 
-    public EventPipeCallStack? GetCallStack(TraceEvent traceEvent)
+    private void OnMethodLoadVerbose(MethodLoadUnloadVerboseTraceData traceData)
     {
-        var traceEventProxy = Unsafe.As<TraceEvent, TraceEventProxy>(ref traceEvent);
-        if (traceEventProxy.eventRecord == null)
-            return null;
+        var index = SearchMethodIndex(traceData.MethodStartAddress);
+        if (index >= 0)
+            return;
 
-        var extendedData = traceEventProxy.eventRecord->ExtendedData;
-        var extendedDataCount = traceEventProxy.eventRecord->ExtendedDataCount;
-
-        for (var i = 0; i < extendedDataCount; i++)
+        var insertIndex = ~index;
+        var fullName = GetFullName(traceData);
+        _methods.Insert(insertIndex, new ParserMethod
         {
-            if (extendedData[i].ExtType != TraceEventNativeMethods.EVENT_HEADER_EXT_TYPE_STACK_TRACE64)
-                continue;
+            FullName = fullName,
+            StartAddress = traceData.MethodStartAddress,
+            Length = (uint)traceData.MethodSize,
+        });
+    }
 
-            var pointerSize = 8;
-            var stackRecord = (TraceEventNativeMethods.EVENT_EXTENDED_ITEM_STACK_TRACE64*)extendedData[i].DataPtr;
+    private int SearchMethodIndex(ulong address)
+    {
+        _lookupParserMethod.StartAddress = address;
 
-            var addresses = &stackRecord->Address[0];
-            var addressCount = (extendedData[i].DataSize - sizeof(ulong)) / pointerSize;
-
-            var callStackAddresses = new List<EventPipeCallStackAddress>();
-            for (var a = addressCount - 1; a >= 0; a--)
-            {
-                var address = addresses[a];
-                var methodFullName = GetMethodFullName(address);
-                callStackAddresses.Add(new EventPipeCallStackAddress(address, methodFullName));
-            }
-
-            return new EventPipeCallStack(callStackAddresses);
-        }
-
-        return null;
+        return _methods.BinarySearch(_lookupParserMethod, ParserMethodAddressComparer.Instance);
     }
 
     private static string GetFullName(MethodLoadUnloadVerboseTraceData data)

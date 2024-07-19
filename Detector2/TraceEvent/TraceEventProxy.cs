@@ -41,19 +41,4 @@ public unsafe class TraceEventProxy
     internal EventIndex eventIndex;
     internal IntPtr myBuffer;
     internal string instanceContainerID;
-
-    internal int ThreadIDforStacks() => 0 <= this.ParentThread ? this.ParentThread : this.ThreadID;
-
-    /// <summary>
-    /// The thread ID for the thread that logged the event
-    /// <para>This field may return -1 for some events when the thread ID is not known.</para>
-    /// </summary>
-    public int ThreadID
-    {
-        get
-        {
-            int threadId = this.eventRecord->EventHeader.ThreadId;
-            return threadId;
-        }
-    }
 }

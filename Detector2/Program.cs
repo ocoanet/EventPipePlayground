@@ -4,6 +4,7 @@ using System.Text;
 using Detector2;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
+using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
 var traceFilePath = Path.GetTempFileName();
 try
@@ -24,7 +25,7 @@ static void ExecuteTracing(string traceFilePath)
     var dotnetTracePath = GetDotnetTracePath();
     var clrRuntimeProvider = $"{ClrTraceEventParser.ProviderName}:0x{(ulong)GetClrRuntimeProviderKeywords():X}:{(int)TraceEventLevel.Verbose}";
     var providers = $"{clrRuntimeProvider}";
-    var targetPath = @"C:\Dev\Repos\EventPipePlayground\Allocator1\bin\Debug\net8.0\Allocator1.exe";
+    var targetPath = @"C:\Dev\Repos\EventPipePlayground\Allocator1\bin\Release\net8.0\Allocator1.exe";
 
     var process = new Process
     {
@@ -58,16 +59,24 @@ static void ExecuteTracing(string traceFilePath)
     Console.WriteLine($"Tracing completed, TraceFileSize: {new FileInfo(traceFilePath).Length}, TraceFilePath: {traceFilePath}");
 }
 
+static ClrRundownTraceEventParser.Keywords GetClrRundownProviderKeywords()
+{
+    return ClrRundownTraceEventParser.Keywords.StartEnumeration
+        | ClrRundownTraceEventParser.Keywords.StopEnumeration
+        | ClrRundownTraceEventParser.Keywords.CodeSymbolsRundown
+        | ClrRundownTraceEventParser.Keywords.Loader
+        | ClrRundownTraceEventParser.Keywords.Jit
+        | ClrRundownTraceEventParser.Keywords.ForceEndRundown
+        ;
+}
+
 static ClrTraceEventParser.Keywords GetClrRuntimeProviderKeywords()
 {
-    return ClrTraceEventParser.Keywords.Jit
-           | ClrTraceEventParser.Keywords.JittedMethodILToNativeMap
-           | ClrTraceEventParser.Keywords.Loader
-           | ClrTraceEventParser.Keywords.Codesymbols
-           | ClrTraceEventParser.Keywords.GCSampledObjectAllocationLow
+    return ClrTraceEventParser.Keywords.GCSampledObjectAllocationLow
            | ClrTraceEventParser.Keywords.GCSampledObjectAllocationHigh
            | ClrTraceEventParser.Keywords.GCHeapAndTypeNames
-           | ClrTraceEventParser.Keywords.Type;
+           | ClrTraceEventParser.Keywords.Type
+        ;
 }
 
 static string GetDotnetTracePath()
@@ -93,30 +102,45 @@ static void ParseTraceFile(string traceFilePath)
 
     var eventSource = new EventPipeEventSource(traceFilePath);
 
-    var stackParser = new EventPipeStackParser(eventSource);
+    var resolver = new EventPipeTypeResolver(eventSource);
+
+    var allocations = new List<(ulong typeId, EventPipeUnresolvedCallSack? callSack)>();
 
     eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
     {
-        var typeName = stackParser.GetTypeName(traceEvent.TypeID);
-        var callStack = FormatCallStack(stackParser.GetCallStack(traceEvent));
-        Console.WriteLine("///////////////////////////");
-        Console.WriteLine($"Type: {typeName}");
-        Console.WriteLine(callStack);
+        var callStack = EventPipeCallStackExtractor.GetCallStack(traceEvent);
+        allocations.Add((traceEvent.TypeID, callStack));
     };
 
     Console.WriteLine("Processing event source");
 
     eventSource.Process();
 
+    var allocationCounts = allocations.Select(x => (typeName: resolver.GetTypeName(x.typeId) ?? "???", callStack: FormatCallStack(x.callSack, resolver)))
+                                      .Where(x => !x.callStack.Contains("ManagedStartup"))
+                                      .GroupBy(x => x)
+                                      .Select(g => (allocation: g.Key, count: g.Count()))
+                                      .Where(x => x.count != 1)
+                                      .OrderByDescending(x => x.count);
+
+    foreach (var (allocation, count) in allocationCounts)
+    {
+        Console.WriteLine("///////////////////////////");
+        Console.WriteLine($"Type: {allocation.typeName}");
+        Console.WriteLine($"Count: {count}");
+        Console.WriteLine(allocation.callStack);
+    }
+
     Console.WriteLine($"Trace file parsing completed");
 }
 
-static string FormatCallStack(EventPipeCallStack? callStack)
+static string FormatCallStack(EventPipeUnresolvedCallSack? unresolvedCallSack, EventPipeTypeResolver typeResolver)
 {
-    if (callStack == null)
+    if (unresolvedCallSack == null)
         return "No callstack";
 
     var stringBuilder = new StringBuilder();
+    var callStack = typeResolver.ResolveCallStack(unresolvedCallSack);
     foreach (var address in callStack.Addresses)
     {
         stringBuilder.AppendLine($"     {address}");
