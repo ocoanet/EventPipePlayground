@@ -4,6 +4,10 @@ The projets in this repository explore multiple ways to capture all allocations 
 
 Allocator 1 is a dummy application which runs for a few seconds and allocates objects.
 
+## Allocator 2
+
+Allocator 2 is a copy of Allocator 1, but it uses a custom event source to add context to allocations.
+
 ## Detector 1
 
 - Use `dotnet-trace` to start the target applications.
@@ -30,3 +34,7 @@ Allocator 1 is a dummy application which runs for a few seconds and allocates ob
 - Use `dotnet-trace` internal code to start the application process with a diagnostic post.
 - Parse the event stream with `EventPipeEventSource`.
 - Use unsafe code to extract the stack traces from trace events.
+
+## Detector 5
+
+Detector 5 is a copy of Detector 1, but it uses custom trace events to discard allocations without context.
