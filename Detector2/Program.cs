@@ -59,17 +59,6 @@ static void ExecuteTracing(string traceFilePath)
     Console.WriteLine($"Tracing completed, TraceFileSize: {new FileInfo(traceFilePath).Length}, TraceFilePath: {traceFilePath}");
 }
 
-static ClrRundownTraceEventParser.Keywords GetClrRundownProviderKeywords()
-{
-    return ClrRundownTraceEventParser.Keywords.StartEnumeration
-        | ClrRundownTraceEventParser.Keywords.StopEnumeration
-        | ClrRundownTraceEventParser.Keywords.CodeSymbolsRundown
-        | ClrRundownTraceEventParser.Keywords.Loader
-        | ClrRundownTraceEventParser.Keywords.Jit
-        | ClrRundownTraceEventParser.Keywords.ForceEndRundown
-        ;
-}
-
 static ClrTraceEventParser.Keywords GetClrRuntimeProviderKeywords()
 {
     return ClrTraceEventParser.Keywords.GCSampledObjectAllocationLow
@@ -108,7 +97,7 @@ static void ParseTraceFile(string traceFilePath)
 
     eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
     {
-        var callStack = EventPipeCallStackExtractor.GetCallStack(traceEvent);
+        var callStack = EventPipeUnresolvedCallSack.GetFrom(traceEvent);
         allocations.Add((traceEvent.TypeID, callStack));
     };
 
