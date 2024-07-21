@@ -20,8 +20,6 @@ Allocator 2 is a copy of Allocator 1, but it uses a custom event source to add c
 - Parse the  nettrace file using `EventPipeEventSource`.
 - Use unsafe code to extract the stack traces from trace events (from trace event extended data).
 
-> The method name lookup is only partially implemented.
-
 ## Detector 3 (failed expriment)
 
 - Use [CreateProcessForLaunch](https://learn.microsoft.com/en-us/dotnet/core/unmanaged-api/debugging/createprocessforlaunch-function) to start the target application.
@@ -33,7 +31,7 @@ Allocator 2 is a copy of Allocator 1, but it uses a custom event source to add c
 
 - Use `dotnet-trace` internal code to start the application process with a diagnostic post.
 - Parse the event stream with `EventPipeEventSource`.
-- Use unsafe code to extract the stack traces from trace events.
+- Use unsafe code to extract the stack traces from trace events (TODO).
 
 ## Detector 5
 
