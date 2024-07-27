@@ -97,7 +97,7 @@ static void ParseTraceFile(string traceFilePath)
 
     eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
     {
-        var callStack = EventPipeUnresolvedCallSack.GetFrom(traceEvent);
+        var callStack = EventPipeUnresolvedCallSack.GetFrom2(traceEvent);
         allocations.Add((traceEvent.TypeID, callStack));
     };
 
