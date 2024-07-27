@@ -97,7 +97,7 @@ static void ParseTraceFile(string traceFilePath)
 
     eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
     {
-        var callStack = EventPipeStack.GetFrom2(traceEvent);
+        var callStack = EventPipeStack.ReadFrom(traceEvent);
         allocations.Add((traceEvent.TypeID, callStack));
     };
 
@@ -105,7 +105,7 @@ static void ParseTraceFile(string traceFilePath)
 
     eventSource.Process();
 
-    var allocationCounts = allocations.Select(x => (typeName: resolver.GetTypeName(x.typeId) ?? "???", callStack: FormatCallStack(x.callSack, resolver)))
+    var allocationCounts = allocations.Select(x => (typeName: resolver.GetTypeName(x.typeId), callStack: FormatCallStack(x.callSack, resolver)))
                                       .Where(x => !x.callStack.Contains("ManagedStartup"))
                                       .GroupBy(x => x)
                                       .Select(g => (allocation: g.Key, count: g.Count()))

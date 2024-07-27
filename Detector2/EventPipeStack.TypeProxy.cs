@@ -14,7 +14,7 @@ unsafe partial class EventPipeStack
     /// <remarks>
     /// Use type-proxy pattern to read field.
     /// </remarks>
-    public static EventPipeStack? GetFrom2(TraceEvent traceEvent)
+    public static EventPipeStack? ReadStackUsingTypeProxy(TraceEvent traceEvent)
     {
         var traceEventProxy = Unsafe.As<TraceEvent, TraceEventProxy>(ref traceEvent);
         if (traceEventProxy.eventRecord == null)

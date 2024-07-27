@@ -17,8 +17,8 @@
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.12"/>
     <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.532401"/>
     <PackageReference Include="IgnoresAccessChecksToGenerator" Version="0.7.0" PrivateAssets="All"/>
-    <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all"/>
-    <PackageReference Include="InlineIL.Fody" Version="1.7.3" PrivateAssets="all"/>
+    <PackageReference Include="Fody" Version="6.8.1" PrivateAssets="all" />
+    <PackageReference Include="InlineIL.Fody" Version="1.9.0-pre3" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

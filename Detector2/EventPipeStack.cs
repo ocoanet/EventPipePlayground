@@ -1,11 +1,10 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using InlineIL;
 using Microsoft.Diagnostics.Tracing;
 
 namespace Detector2;
 
-public partial class EventPipeStack
+public unsafe partial class EventPipeStack
 {
     public EventPipeStack(ulong[] addresses)
     {
@@ -14,10 +13,12 @@ public partial class EventPipeStack
 
     public ulong[] Addresses { get; }
 
+    public static EventPipeStack? ReadFrom(TraceEvent traceEvent) => ReadStackUsingInlineIL(traceEvent);
+
     /// <remarks>
     /// Use reflection to read field.
     /// </remarks>
-    public static unsafe EventPipeStack? GetFrom1(TraceEvent traceEvent)
+    public static EventPipeStack? ReadStackUsingReflection(TraceEvent traceEvent)
     {
         // Of course the FieldInfo needs to be cached.
         var fieldInfo = typeof(TraceEvent).GetField("eventRecord", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -30,26 +31,26 @@ public partial class EventPipeStack
         return GetFromEventRecord(eventRecord);
     }
 
-    // /// <remarks>
-    // /// Use InlineIL.Fody to read field.
-    // /// </remarks>
-    // public static unsafe EventPipeUnresolvedCallSack? GetFrom3(TraceEvent traceEvent)
-    // {
-    //     var eventRecord = (TraceEventNativeMethods.EVENT_RECORD*)ReadEventRecord(traceEvent);
-    //     if (eventRecord == null)
-    //         return null;
-    //
-    //     return GetFromEventRecord(eventRecord);
-    // }
-    //
-    // private static nint ReadEventRecord(TraceEvent traceEvent)
-    // {
-    //     IL.Emit.Ldarg(nameof(traceEvent));
-    //     IL.Emit.Ldfld(FieldRef.Field(typeof(TraceEvent), "eventRecord"));
-    //     IL.Emit.Ret();
-    //
-    //     throw IL.Unreachable();
-    // }
+    /// <remarks>
+    /// Use InlineIL.Fody to read field.
+    /// </remarks>
+    public static EventPipeStack? ReadStackUsingInlineIL(TraceEvent traceEvent)
+    {
+        var eventRecord = ReadEventRecord(traceEvent);
+        if (eventRecord == null)
+            return null;
+
+        return GetFromEventRecord(eventRecord);
+    }
+
+    private static TraceEventNativeMethods.EVENT_RECORD* ReadEventRecord(TraceEvent traceEvent)
+    {
+        IL.Emit.Ldarg(nameof(traceEvent));
+        IL.Emit.Ldfld(FieldRef.Field(typeof(TraceEvent), "eventRecord"));
+        IL.Emit.Ret();
+
+        throw IL.Unreachable();
+    }
 
     private static unsafe EventPipeStack? GetFromEventRecord(TraceEventNativeMethods.EVENT_RECORD* eventRecord)
     {
