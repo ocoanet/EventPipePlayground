@@ -26,17 +26,17 @@ public class EventPipeTypeResolver
     /// So resolving call stacks before the end of the processing will probably call stack with
     /// missing method names.
     /// </remarks>
-    public EventPipeCallStack ResolveCallStack(EventPipeStack stack)
+    public EventPipeResolveStack ResolveCallStack(EventPipeUnresolvedStack stack)
     {
-        var addresses = new EventPipeCallStackAddress[stack.Addresses.Length];
+        var addresses = new EventPipeResolvedAddress[stack.Addresses.Length];
 
         for (var index = 0; index < addresses.Length; index++)
         {
             var address = stack.Addresses[index];
-            addresses[index] = new EventPipeCallStackAddress(address, GetMethodFullName(address));
+            addresses[index] = new EventPipeResolvedAddress(address, GetMethodFullName(address));
         }
 
-        return new EventPipeCallStack(addresses);
+        return new EventPipeResolveStack(addresses);
     }
 
     public string? GetTypeName(ulong typeId)

@@ -93,11 +93,11 @@ static void ParseTraceFile(string traceFilePath)
 
     var resolver = new EventPipeTypeResolver(eventSource);
 
-    var allocations = new List<(ulong typeId, EventPipeStack? callSack)>();
+    var allocations = new List<(ulong typeId, EventPipeUnresolvedStack? callSack)>();
 
     eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
     {
-        var callStack = EventPipeStack.ReadFrom(traceEvent);
+        var callStack = EventPipeUnresolvedStack.ReadFrom(traceEvent);
         allocations.Add((traceEvent.TypeID, callStack));
     };
 
@@ -123,7 +123,7 @@ static void ParseTraceFile(string traceFilePath)
     Console.WriteLine($"Trace file parsing completed");
 }
 
-static string FormatCallStack(EventPipeStack? unresolvedCallSack, EventPipeTypeResolver typeResolver)
+static string FormatCallStack(EventPipeUnresolvedStack? unresolvedCallSack, EventPipeTypeResolver typeResolver)
 {
     if (unresolvedCallSack == null)
         return "No callstack";

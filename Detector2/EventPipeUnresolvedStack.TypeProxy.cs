@@ -9,12 +9,12 @@ using Microsoft.Diagnostics.Tracing;
 
 namespace Detector2;
 
-unsafe partial class EventPipeStack
+unsafe partial class EventPipeUnresolvedStack
 {
     /// <remarks>
     /// Use type-proxy pattern to read field.
     /// </remarks>
-    public static EventPipeStack? ReadStackUsingTypeProxy(TraceEvent traceEvent)
+    public static EventPipeUnresolvedStack? ReadStackUsingTypeProxy(TraceEvent traceEvent)
     {
         var traceEventProxy = Unsafe.As<TraceEvent, TraceEventProxy>(ref traceEvent);
         if (traceEventProxy.eventRecord == null)
@@ -23,7 +23,7 @@ unsafe partial class EventPipeStack
         return GetFromEventRecord(traceEventProxy.eventRecord);
     }
 
-    private static EventPipeStack? GetFromEventRecord(EVENT_RECORD_PROXY* eventRecord)
+    private static EventPipeUnresolvedStack? GetFromEventRecord(EVENT_RECORD_PROXY* eventRecord)
     {
         if (eventRecord == null)
             return null;
@@ -50,7 +50,7 @@ unsafe partial class EventPipeStack
                 callStackAddresses[index] = addresses[index];
             }
 
-            return new EventPipeStack(callStackAddresses);
+            return new EventPipeUnresolvedStack(callStackAddresses);
         }
 
         return null;
