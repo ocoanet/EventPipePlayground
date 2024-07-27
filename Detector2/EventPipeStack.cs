@@ -5,9 +5,9 @@ using Microsoft.Diagnostics.Tracing;
 
 namespace Detector2;
 
-public partial class EventPipeUnresolvedCallSack
+public partial class EventPipeStack
 {
-    public EventPipeUnresolvedCallSack(ulong[] addresses)
+    public EventPipeStack(ulong[] addresses)
     {
         Addresses = addresses;
     }
@@ -17,7 +17,7 @@ public partial class EventPipeUnresolvedCallSack
     /// <remarks>
     /// Use reflection to read field.
     /// </remarks>
-    public static unsafe EventPipeUnresolvedCallSack? GetFrom1(TraceEvent traceEvent)
+    public static unsafe EventPipeStack? GetFrom1(TraceEvent traceEvent)
     {
         // Of course the FieldInfo needs to be cached.
         var fieldInfo = typeof(TraceEvent).GetField("eventRecord", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -28,18 +28,6 @@ public partial class EventPipeUnresolvedCallSack
         var eventRecord = (TraceEventNativeMethods.EVENT_RECORD*)Pointer.Unbox(value);
 
         return GetFromEventRecord(eventRecord);
-    }
-
-    /// <remarks>
-    /// Use type-proxy pattern to read field.
-    /// </remarks>
-    public static unsafe EventPipeUnresolvedCallSack? GetFrom2(TraceEvent traceEvent)
-    {
-        var traceEventProxy = Unsafe.As<TraceEvent, TraceEventProxy>(ref traceEvent);
-        if (traceEventProxy.eventRecord == null)
-            return null;
-
-        return GetFromEventRecord(traceEventProxy.eventRecord);
     }
 
     // /// <remarks>
@@ -63,7 +51,7 @@ public partial class EventPipeUnresolvedCallSack
     //     throw IL.Unreachable();
     // }
 
-    private static unsafe EventPipeUnresolvedCallSack? GetFromEventRecord(TraceEventNativeMethods.EVENT_RECORD* eventRecord)
+    private static unsafe EventPipeStack? GetFromEventRecord(TraceEventNativeMethods.EVENT_RECORD* eventRecord)
     {
         if (eventRecord == null)
             return null;
@@ -90,7 +78,7 @@ public partial class EventPipeUnresolvedCallSack
                 callStackAddresses[index] = addresses[index];
             }
 
-            return new EventPipeUnresolvedCallSack(callStackAddresses);
+            return new EventPipeStack(callStackAddresses);
         }
 
         return null;
