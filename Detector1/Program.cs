@@ -101,33 +101,18 @@ static void ParseTraceFile(string traceFilePath)
     {
         using var traceLog = new TraceLog(etlxFilePath);
 
-        var typeNames = new Dictionary<ulong, string>();
+        var typeNames = LoadTypeNames(traceLog);
 
-        foreach (var traceEvent in traceLog.Events.ByEventType<GCBulkTypeTraceData>())
+        foreach (var traceEvent in traceLog.Events.OfType<GCSampledObjectAllocationTraceData>())
         {
-            for (var index = 0; index < traceEvent.Count; index++)
-            {
-                var typeData = traceEvent.Values(index);
-                typeNames[typeData.TypeID] = typeData.TypeName;
-            }
+            var typeName = typeNames[traceEvent.TypeID];
+            var callStack = FormatCallStack(traceEvent.CallStack());
+
+            Console.WriteLine("// Alloc found!");
+            Console.WriteLine($"Type: {typeName}");
+            Console.WriteLine(callStack);
         }
 
-        var allocationCounts = traceLog.Events
-                                       .ByEventType<GCSampledObjectAllocationTraceData>()
-                                       .Select(x => (typeName: typeNames.GetValueOrDefault(x.TypeID, "???"), callStack: FormatCallStack(x.CallStack())))
-                                       .Where(x => !x.callStack.Contains("ManagedStartup"))
-                                       .GroupBy(x => x)
-                                       .Select(g => (allocation: g.Key, count: g.Count()))
-                                       .Where(x => x.count != 1)
-                                       .OrderByDescending(x => x.count);
-
-        foreach (var (allocation, count) in allocationCounts)
-        {
-            Console.WriteLine("///////////////////////////");
-            Console.WriteLine($"Type: {allocation.typeName}");
-            Console.WriteLine($"Count: {count}");
-            Console.WriteLine(allocation.callStack);
-        }
     }
     finally
     {
@@ -135,6 +120,22 @@ static void ParseTraceFile(string traceFilePath)
     }
 
     Console.WriteLine($"Trace file parsing completed");
+}
+
+static Dictionary<ulong, string> LoadTypeNames(TraceLog traceLog)
+{
+    var typeNames = new Dictionary<ulong, string>();
+
+    foreach (var traceEvent in traceLog.Events.OfType<GCBulkTypeTraceData>())
+    {
+        for (var index = 0; index < traceEvent.Count; index++)
+        {
+            var typeData = traceEvent.Values(index);
+            typeNames[typeData.TypeID] = typeData.TypeName;
+        }
+    }
+
+    return typeNames;
 }
 
 static string FormatCallStack(TraceCallStack? callStack)
