@@ -36,3 +36,7 @@ Allocator 2 is a copy of Allocator 1, but it uses a custom event source to add c
 ## Detector 5
 
 Detector 5 is a copy of Detector 1, but it uses custom trace events to discard allocations without context.
+
+## Article Code
+
+Random code samples for the medium article.
