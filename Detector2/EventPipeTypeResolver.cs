@@ -68,13 +68,15 @@ public class EventPipeTypeResolver
 
     private void OnMethodLoadVerbose(MethodLoadUnloadVerboseTraceData traceData)
     {
-        var index = SearchMethodIndex(traceData.MethodStartAddress);
+        var methodStartAddress = traceData.MethodStartAddress;
+        var index = SearchMethodIndex(methodStartAddress);
         if (index >= 0)
             return;
 
         var insertIndex = ~index;
         var fullName = GetFullName(traceData);
-        var parserMethod = new ParserMethod(fullName,traceData.MethodStartAddress, (uint)traceData.MethodSize);
+        var methodSize = (uint)traceData.MethodSize;
+        var parserMethod = new ParserMethod(fullName, methodStartAddress, methodSize);
         _methods.Insert(insertIndex, parserMethod);
     }
 
@@ -116,6 +118,7 @@ public class EventPipeTypeResolver
     private class ParserMethodAddressComparer : IComparer<ParserMethod>
     {
         public static ParserMethodAddressComparer Instance { get; } = new();
+
         public int Compare(ParserMethod? x, ParserMethod? y)
         {
             return x!.StartAddress.CompareTo(y!.StartAddress);

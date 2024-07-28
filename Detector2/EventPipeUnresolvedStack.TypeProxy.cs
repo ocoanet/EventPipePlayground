@@ -11,6 +11,8 @@ namespace Detector2;
 
 unsafe partial class EventPipeUnresolvedStack
 {
+    public const ushort EVENT_HEADER_EXT_TYPE_STACK_TRACE64 = 6;
+
     /// <remarks>
     /// Use type-proxy pattern to read field.
     /// </remarks>
@@ -33,11 +35,11 @@ unsafe partial class EventPipeUnresolvedStack
 
         for (var i = 0; i < extendedDataCount; i++)
         {
-            if (extendedData[i].ExtType != TraceEventNativeMethods.EVENT_HEADER_EXT_TYPE_STACK_TRACE64)
+            if (extendedData[i].ExtType != EVENT_HEADER_EXT_TYPE_STACK_TRACE64)
                 continue;
 
             var pointerSize = 8;
-            var stackRecord = (TraceEventNativeMethods.EVENT_EXTENDED_ITEM_STACK_TRACE64*)extendedData[i].DataPtr;
+            var stackRecord = (EVENT_EXTENDED_ITEM_STACK_TRACE64_PROXY*)extendedData[i].DataPtr;
 
             var addresses = &stackRecord->Address[0];
             var addressCount = (extendedData[i].DataSize - sizeof(ulong)) / pointerSize;
@@ -87,6 +89,18 @@ unsafe partial class EventPipeUnresolvedStack
         public ushort DataSize;
         public ulong DataPtr;
     };
+
+    public struct EVENT_EXTENDED_ITEM_STACK_TRACE32_PROXY
+    {
+        public ulong MatchId;
+        public unsafe fixed uint Address[1];
+    }
+
+    public struct EVENT_EXTENDED_ITEM_STACK_TRACE64_PROXY
+    {
+        public ulong MatchId;
+        public unsafe fixed ulong Address[1];
+    }
 
     private class TraceEventProxy
     {

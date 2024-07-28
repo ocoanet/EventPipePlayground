@@ -55,24 +55,23 @@ public unsafe partial class EventPipeUnresolvedStack
         throw IL.Unreachable();
     }
 
-    private static unsafe EventPipeUnresolvedStack? GetFromEventRecord(TraceEventNativeMethods.EVENT_RECORD* eventRecord)
+    private static EventPipeUnresolvedStack? GetFromEventRecord(TraceEventNativeMethods.EVENT_RECORD* eventRecord)
     {
         if (eventRecord == null)
             return null;
 
-        var extendedData = eventRecord->ExtendedData;
         var extendedDataCount = eventRecord->ExtendedDataCount;
 
-        for (var i = 0; i < extendedDataCount; i++)
+        for (var dataIndex = 0; dataIndex < extendedDataCount; dataIndex++)
         {
-            if (extendedData[i].ExtType != TraceEventNativeMethods.EVENT_HEADER_EXT_TYPE_STACK_TRACE64)
+            var extendedData = eventRecord->ExtendedData[dataIndex];
+            if (extendedData.ExtType != TraceEventNativeMethods.EVENT_HEADER_EXT_TYPE_STACK_TRACE64)
                 continue;
 
-            var pointerSize = 8;
-            var stackRecord = (TraceEventNativeMethods.EVENT_EXTENDED_ITEM_STACK_TRACE64*)extendedData[i].DataPtr;
+            var stackRecord = (TraceEventNativeMethods.EVENT_EXTENDED_ITEM_STACK_TRACE64*)extendedData.DataPtr;
 
             var addresses = &stackRecord->Address[0];
-            var addressCount = (extendedData[i].DataSize - sizeof(ulong)) / pointerSize;
+            var addressCount = (extendedData.DataSize - sizeof(ulong)) / sizeof(ulong);
             if (addressCount == 0)
                 return null;
 
