@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using InlineIL;
 using Microsoft.Diagnostics.Tracing;
 
@@ -33,6 +34,32 @@ public unsafe partial class EventPipeUnresolvedStack
 
         return GetFromEventRecord(eventRecord);
     }
+
+    /// <remarks>
+    /// Use UnsafeAccessor to read field (BROKEN).
+    /// </remarks>
+    public static EventPipeUnresolvedStack? ReadStackUsingUnsafeAccessor(TraceEvent traceEvent)
+    {
+        var eventRecord = (TraceEventNativeMethods.EVENT_RECORD*)GetEventRecord_1(ref traceEvent);
+
+        return GetFromEventRecord(eventRecord);
+    }
+
+    /// <summary>
+    /// Broken: generates <see cref="System.MissingFieldException"/>.
+    /// </summary>
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "eventRecord")]
+    private static extern ref IntPtr GetEventRecord_1(ref TraceEvent traceEvent);
+
+    /// <summary>
+    /// Broken: generates runtime errors.
+    /// <code>
+    /// Failed to dereference an unmanaged pointer: A reference value was found to be bad during dereferencing.
+    /// (0x80131305). The error code is CORDBG_E_BAD_REFERENCE_VALUE, or 0x80131305.
+    /// </code>
+    /// </summary>
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "eventRecord")]
+    private static extern ref TraceEventNativeMethods.EVENT_RECORD* GetEventRecord_2(ref TraceEvent traceEvent);
 
     /// <remarks>
     /// Use InlineIL.Fody to read field.
