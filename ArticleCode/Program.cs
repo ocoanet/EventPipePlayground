@@ -18,11 +18,10 @@ static void EventPipeEventSourceSample(string netTraceFilePath)
         Console.WriteLine("Allocation Found!");
 
         // The name can be resolved using the GCBulkTypeTraceData events
-        // (see previous article).
+        // (see previous post).
         Console.WriteLine($"TypeID: {traceEvent.TypeID}");
 
-        // Incorrect: throws InvalidOperationException because the trace
-        // event is not issued by TraceLog.
+        // Incorrect!
         Console.WriteLine(traceEvent.CallStack());
     };
 
