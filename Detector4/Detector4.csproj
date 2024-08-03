@@ -5,16 +5,33 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsAssemblyName Include="Microsoft.Diagnostics.NETCore.Client"/>
+    <InternalsAssemblyName Include="Microsoft.Diagnostics.Tracing.TraceEvent"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.12"/>
     <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.532401"/>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.12"/>
     <PackageReference Include="IgnoresAccessChecksToGenerator" Version="0.7.0" PrivateAssets="All"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Detector2\EventPipeResolvedStack.cs">
+      <Link>EventPipeResolvedStack.cs</Link>
+    </Compile>
+    <Compile Include="..\Detector2\EventPipeTypeResolver.cs">
+      <Link>EventPipeTypeResolver.cs</Link>
+    </Compile>
+    <Compile Include="..\Detector2\EventPipeUnresolvedStack.cs">
+      <Link>EventPipeUnresolvedStack.cs</Link>
+    </Compile>
+    <Compile Include="..\Detector2\EventPipeUnresolvedStack.UnsafeAccessor.cs">
+      <Link>EventPipeUnresolvedStack.UnsafeAccessor.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

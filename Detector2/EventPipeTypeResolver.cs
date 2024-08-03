@@ -5,8 +5,8 @@ namespace Detector2;
 
 public class EventPipeTypeResolver
 {
-    private readonly List<ParserMethod> _methods = new();
-    private readonly ParserMethod _lookupParserMethod = new("", default, default);
+    private readonly List<MethodDescriptor> _methods = new();
+    private readonly MethodDescriptor _lookupParserMethod = new("", default, default);
     private readonly Dictionary<ulong, string> _typeNames = new();
 
     public EventPipeTypeResolver(EventPipeEventSource eventSource)
@@ -26,7 +26,7 @@ public class EventPipeTypeResolver
     /// So resolving call stacks before the end of the processing will probably call stack with
     /// missing method names.
     /// </remarks>
-    public EventPipeResolveStack ResolveCallStack(EventPipeUnresolvedStack stack)
+    public EventPipeResolvedStack ResolveCallStack(EventPipeUnresolvedStack stack)
     {
         var addresses = new EventPipeResolvedAddress[stack.Addresses.Length];
 
@@ -36,7 +36,7 @@ public class EventPipeTypeResolver
             addresses[index] = new EventPipeResolvedAddress(address, GetMethodFullName(address));
         }
 
-        return new EventPipeResolveStack(addresses);
+        return new EventPipeResolvedStack(addresses);
     }
 
     public string? GetTypeName(ulong typeId)
@@ -76,7 +76,7 @@ public class EventPipeTypeResolver
         var insertIndex = ~index;
         var fullName = GetFullName(traceData);
         var methodSize = (uint)traceData.MethodSize;
-        var parserMethod = new ParserMethod(fullName, methodStartAddress, methodSize);
+        var parserMethod = new MethodDescriptor(fullName, methodStartAddress, methodSize);
         _methods.Insert(insertIndex, parserMethod);
     }
 
@@ -84,7 +84,7 @@ public class EventPipeTypeResolver
     {
         _lookupParserMethod.StartAddress = address;
 
-        return _methods.BinarySearch(_lookupParserMethod, ParserMethodAddressComparer.Instance);
+        return _methods.BinarySearch(_lookupParserMethod, MethodDescriptorAddressComparer.Instance);
     }
 
     private static string GetFullName(MethodLoadUnloadVerboseTraceData data)
@@ -96,9 +96,9 @@ public class EventPipeTypeResolver
         return data.MethodNamespace + "." + data.MethodName + args;
     }
 
-    private class ParserMethod
+    private class MethodDescriptor
     {
-        public ParserMethod(string fullName, ulong startAddress, uint length)
+        public MethodDescriptor(string fullName, ulong startAddress, uint length)
         {
             FullName = fullName;
             StartAddress = startAddress;
@@ -115,11 +115,11 @@ public class EventPipeTypeResolver
         }
     }
 
-    private class ParserMethodAddressComparer : IComparer<ParserMethod>
+    private class MethodDescriptorAddressComparer : IComparer<MethodDescriptor>
     {
-        public static ParserMethodAddressComparer Instance { get; } = new();
+        public static MethodDescriptorAddressComparer Instance { get; } = new();
 
-        public int Compare(ParserMethod? x, ParserMethod? y)
+        public int Compare(MethodDescriptor? x, MethodDescriptor? y)
         {
             return x!.StartAddress.CompareTo(y!.StartAddress);
         }

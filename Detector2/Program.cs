@@ -128,12 +128,6 @@ static string FormatCallStack(EventPipeUnresolvedStack? unresolvedCallSack, Even
     if (unresolvedCallSack == null)
         return "No callstack";
 
-    var stringBuilder = new StringBuilder();
     var callStack = typeResolver.ResolveCallStack(unresolvedCallSack);
-    foreach (var address in callStack.Addresses)
-    {
-        stringBuilder.AppendLine($"     {address}");
-    }
-
-    return stringBuilder.ToString();
+    return callStack.ToString();
 }

@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Diagnostics.NETCore.Client;
+#pragma warning disable
 
 namespace Microsoft.Internal.Common.Utils
 {
