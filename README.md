@@ -36,6 +36,9 @@ Allocator 2 is a copy of Allocator 1, but it uses a custom event source to add c
 ## Detector 5
 
 Detector 5 is a copy of Detector 1, but it uses custom trace events to discard allocations without context.
+It includes two parsing implementations:
+- a pull mode parsing which iterates the `TraceLog` events and read replay trace events as untyped dynamic events,
+- a push mode parsing which used a custom `TraceEventParser` to read replay trace events as typed events.
 
 ## Article Code
 

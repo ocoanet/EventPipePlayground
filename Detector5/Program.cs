@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using Allocator2;
+using Detector5.Parsing;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.Parsers;
@@ -11,7 +12,7 @@ var traceFilePath = Path.GetTempFileName();
 try
 {
     ExecuteTracing(traceFilePath);
-    ParseTraceFile(traceFilePath);
+    ParseTraceFileV2(traceFilePath);
 }
 finally
 {
@@ -79,7 +80,8 @@ static string GetDotnetTracePath()
     throw new PlatformNotSupportedException();
 }
 
-static void ParseTraceFile(string traceFilePath)
+// Pull mode: iterate trace events and read replay as untyped dynamic events
+static void ParseTraceFileV1(string traceFilePath)
 {
     if (!File.Exists(traceFilePath))
     {
@@ -133,6 +135,71 @@ static void ParseTraceFile(string traceFilePath)
             if (traceEvent is GCSampledObjectAllocationTraceData allocationTraceData && currentEventStoreEvent != null)
                 ProcessAllocation(allocationTraceData, currentEventStoreEvent.Value, typeNames);
         }
+    }
+    finally
+    {
+        File.Delete(etlxFilePath);
+    }
+
+    Console.WriteLine($"Trace file parsing completed");
+}
+
+// push mode: use TraceEventSource and a custom parser to iterate trace events
+static void ParseTraceFileV2(string traceFilePath)
+{
+    if (!File.Exists(traceFilePath))
+    {
+        Console.WriteLine("Unable to find trace file");
+        return;
+    }
+
+    Console.WriteLine("Starting trace file parsing");
+
+    var traceLogOptions = new TraceLogOptions
+    {
+        ConversionLog = TextWriter.Null,
+        AlwaysResolveSymbols = true,
+        LocalSymbolsOnly = true,
+        ShouldResolveSymbols = _ => true,
+        ContinueOnError = true,
+    };
+
+    var etlxFilePath = TraceLog.CreateFromEventPipeDataFile(traceFilePath, options: traceLogOptions);
+    try
+    {
+        using var traceLog = new TraceLog(etlxFilePath);
+
+        var typeNames = new Dictionary<ulong, string>();
+        var currentEventStoreEvent = (EventStoreEvent?)null;
+
+        var eventSource = traceLog.Events.GetSource();
+        var replayTraceEventParser = new ReplayTraceEventParser(eventSource);
+
+        replayTraceEventParser.EventStoreEventProcessingStart += traceEvent =>
+        {
+            currentEventStoreEvent = new EventStoreEvent(
+                traceEvent.Sequence,
+                traceEvent.TimestampTicks
+            );
+        };
+
+        replayTraceEventParser.EventStoreEventProcessingStop += _ =>
+        {
+            currentEventStoreEvent = null;
+        };
+
+        eventSource.Clr.TypeBulkType += traceEvent =>
+        {
+            LoadTypeNames(typeNames, traceEvent);
+        };
+
+        eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
+        {
+            if (currentEventStoreEvent != null)
+                ProcessAllocation(traceEvent, currentEventStoreEvent.Value, typeNames);
+        };
+
+        eventSource.Process();
     }
     finally
     {

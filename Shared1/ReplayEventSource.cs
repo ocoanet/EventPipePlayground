@@ -9,15 +9,20 @@ public class ReplayEventSource : EventSource
 
     public static string ProviderName => Log.Name;
 
-    public const int EventStoreEventProcessingStartId = 101;
+    public const int EventStoreEventProcessingStartId = 1;
 
-    [Event(EventStoreEventProcessingStartId, Level = EventLevel.Informational, Task = (EventTask)1, Opcode = EventOpcode.Start)]
+    [Event(EventStoreEventProcessingStartId, Level = EventLevel.Informational, Task = Tasks.EntryProcessing, Opcode = EventOpcode.Start)]
     public void EventStoreEventProcessingStart(long sequence, long timestampTicks)
         => WriteEvent(EventStoreEventProcessingStartId, sequence, timestampTicks);
 
-    public const int EventStoreEventProcessingStopId = 102;
+    public const int EventStoreEventProcessingStopId = 2;
 
-    [Event(EventStoreEventProcessingStopId, Level = EventLevel.Informational, Task = (EventTask)1, Opcode = EventOpcode.Stop)]
+    [Event(EventStoreEventProcessingStopId, Level = EventLevel.Informational, Task = Tasks.EntryProcessing, Opcode = EventOpcode.Stop)]
     public void EventStoreEventProcessingStop()
         => WriteEvent(EventStoreEventProcessingStopId);
+
+    public static class Tasks
+    {
+        public const EventTask EntryProcessing = (EventTask)1;
+    }
 }
