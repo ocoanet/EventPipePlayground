@@ -1,26 +1,33 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Runtime.InteropServices;
 using Detector2;
 using Microsoft.Diagnostics.NETCore.Client;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
-using Microsoft.Internal.Common.Utils;
 
 var targetPath = @"C:\Dev\Repos\EventPipePlayground\Allocator1\bin\Release\net8.0\Allocator1.exe";
 
-ProcessLauncher.Launcher.PrepareChildProcess(["--", targetPath]);
+var ipcAddress = CreateIpcAddress();
 
-var builder = new DiagnosticsClientBuilder("EventPipePlayground", 10);
+// 1: start a diagnostics server on a dedicated named IPC channel
+await using var server = new ReversedDiagnosticsServer(ipcAddress);
+server.Start();
 
-using var clientHolder = await builder.Build(CancellationToken.None, -1, "", true, true);
+// 2: start the target application with a specific environment variable
+var childProcess = StartChildProcess(targetPath, environment: ("DOTNET_DiagnosticPorts", ipcAddress));
 
-var process = Process.GetProcessById(clientHolder.EndpointInfo.ProcessId);
+// 3: wait until the target application CLR connects to the IPC channel
+var endpointInfo = server.Accept(TimeSpan.FromSeconds(10));
 
-var eventPipeProvider = new EventPipeProvider(ClrTraceEventParser.ProviderName, EventLevel.Verbose, (long)GetClrRuntimeProviderKeywords());
+// 4: create a DiagnosticsClient using the internal, IPC-based constructor
+var diagnosticsClient = new DiagnosticsClient(endpointInfo.Endpoint);
 
-using var startEventPipeSession = clientHolder.Client.StartEventPipeSession(eventPipeProvider, requestRundown: true);
+// 5: start the EventPipe session with the request providers
+using var startEventPipeSession = diagnosticsClient.StartEventPipeSession(GetEventPipeProviders(), requestRundown: true);
 
-clientHolder.Client.ResumeRuntime();
+// 6: resume the target application CLR
+diagnosticsClient.ResumeRuntime();
 
 var eventSource = new EventPipeEventSource(startEventPipeSession.EventStream);
 
@@ -36,6 +43,7 @@ eventSource.Clr.GCSampledObjectAllocation += traceEvent =>
 Console.WriteLine("Processing event source");
 
 eventSource.Process();
+childProcess.WaitForExit();
 
 var allocationCounts = allocations.Select(x => (typeName: resolver.GetTypeName(x.typeId), callStack: FormatCallStack(x.callSack, resolver)))
                                   .Where(x => !x.callStack.Contains("ManagedStartup"))
@@ -53,9 +61,6 @@ foreach (var (allocation, count) in allocationCounts)
 }
 
 Console.WriteLine($"Trace file parsing completed");
-
-process.WaitForExit();
-
 Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
 
@@ -65,6 +70,32 @@ static ClrTraceEventParser.Keywords GetClrRuntimeProviderKeywords()
            | ClrTraceEventParser.Keywords.GCSampledObjectAllocationHigh
            | ClrTraceEventParser.Keywords.GCHeapAndTypeNames
            | ClrTraceEventParser.Keywords.Type;
+}
+
+static string CreateIpcAddress()
+{
+    var name = $"EventPipePlayground-{Process.GetCurrentProcess().Id}-{DateTime.Now:yyyyMMdd-HHmmss}.socket";
+    return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? name : Path.Combine(Path.GetTempPath(), name);
+}
+
+static Process StartChildProcess(string targetPath, params (string key, string value)[] environment)
+{
+    var process = new Process();
+    process.StartInfo.FileName = targetPath;
+
+    foreach (var (key, value) in environment)
+    {
+        process.StartInfo.Environment[key] = value;
+    }
+
+    process.Start();
+
+    return process;
+}
+
+EventPipeProvider[] GetEventPipeProviders()
+{
+    return [new EventPipeProvider(ClrTraceEventParser.ProviderName, EventLevel.Verbose, (long)GetClrRuntimeProviderKeywords())];
 }
 
 static string FormatCallStack(EventPipeUnresolvedStack? unresolvedCallSack, EventPipeTypeResolver typeResolver)
