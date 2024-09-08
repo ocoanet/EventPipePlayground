@@ -97,13 +97,16 @@ static void ParseTraceFile(string traceFilePath)
     };
 
     var etlxFilePath = TraceLog.CreateFromEventPipeDataFile(traceFilePath, options: traceLogOptions);
+
+    Console.WriteLine($"Nettrace file converted, EtlxFileSize: {new FileInfo(etlxFilePath).Length}");
+
     try
     {
         using var traceLog = new TraceLog(etlxFilePath);
 
         var typeNames = LoadTypeNames(traceLog);
 
-        foreach (var traceEvent in traceLog.Events.OfType<GCSampledObjectAllocationTraceData>())
+        foreach (var traceEvent in traceLog.Events.ByEventType<GCSampledObjectAllocationTraceData>())
         {
             var typeName = typeNames[traceEvent.TypeID];
             var callStack = FormatCallStack(traceEvent.CallStack());
@@ -126,7 +129,7 @@ static Dictionary<ulong, string> LoadTypeNames(TraceLog traceLog)
 {
     var typeNames = new Dictionary<ulong, string>();
 
-    foreach (var traceEvent in traceLog.Events.OfType<GCBulkTypeTraceData>())
+    foreach (var traceEvent in traceLog.Events.ByEventType<GCBulkTypeTraceData>())
     {
         for (var index = 0; index < traceEvent.Count; index++)
         {
