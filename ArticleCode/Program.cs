@@ -1,8 +1,11 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
+using Microsoft.Diagnostics.NETCore.Client;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
+using Microsoft.Diagnostics.Tracing.Parsers;
 
 TypeProxyExample();
 
@@ -26,6 +29,28 @@ static void EventPipeEventSourceSample(string netTraceFilePath)
     };
 
     eventSource.Process();
+}
+
+static void DiagnosticsClientSample(int processId)
+{
+    var client = new DiagnosticsClient(processId);
+
+    var provider = new EventPipeProvider(
+        name: ClrTraceEventParser.ProviderName,
+        eventLevel: EventLevel.Informational,
+        keywords: GetClrProviderKeywords()
+    );
+
+    using var session = client.StartEventPipeSession(provider, false);
+    using var source = new EventPipeEventSource(session.EventStream);
+
+    source.Clr.All += traceEvent => Console.WriteLine(traceEvent.EventName);
+    source.Process();
+}
+
+static long GetClrProviderKeywords()
+{
+    return (long)ClrTraceEventParser.Keywords.Default;
 }
 
 static void TypeProxyExample()
