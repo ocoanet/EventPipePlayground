@@ -9,16 +9,17 @@ var targetPath = @"C:\Dev\Repos\EventPipePlayground\Allocator1\bin\Debug\net8.0\
 
 var dbgshim = new DbgShim(NativeLibrary.Load("dbgshim", typeof(Program).Assembly, null));
 
+// (A) Creates a suspended process
 var launchResult = dbgshim.CreateProcessForLaunch(targetPath, bSuspendProcess: true);
 
+// (B) Creates a DiagnosticsClient on the target process
 var diagnosticsClient = new DiagnosticsClient(launchResult.ProcessId);
 
-// If StartEventPipeSession is invoked before ResumeProcess, StartEventPipeSession hangs.
-// If StartEventPipeSession is invoked after ResumeProcess, it is too late to enable provider allocation keywords.
-
+// (C) Resume the target process
 dbgshim.ResumeProcess(launchResult.ResumeHandle);
 
-using var startEventPipeSession = diagnosticsClient.StartEventPipeSession(new EventPipeProvider(ClrTraceEventParser.ProviderName, EventLevel.Verbose, (long)GetClrRuntimeProviderKeywords()), false);
+// (D) Starts EventPipe session with required providers
+using var startEventPipeSession = diagnosticsClient.StartEventPipeSession(GetProviders(), false);
 
 var eventSource = new EventPipeEventSource(startEventPipeSession.EventStream);
 
@@ -39,6 +40,11 @@ process.WaitForExit();
 Console.WriteLine("Press Enter to exit...");
 Console.ReadLine();
 
+static EventPipeProvider[] GetProviders()
+{
+    return [new EventPipeProvider(ClrTraceEventParser.ProviderName, EventLevel.Verbose, (long)GetClrRuntimeProviderKeywords())];
+}
+
 static ClrTraceEventParser.Keywords GetClrRuntimeProviderKeywords()
 {
     return ClrTraceEventParser.Keywords.GC
@@ -52,4 +58,3 @@ static ClrTraceEventParser.Keywords GetClrRuntimeProviderKeywords()
            | ClrTraceEventParser.Keywords.GCHeapAndTypeNames
            | ClrTraceEventParser.Keywords.Type;
 }
-
